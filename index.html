@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>가계부</title>
+<style>
+  :root{
+    --paper:#F7F5F0;
+    --card:#FFFFFF;
+    --ink:#2B2926;
+    --muted:#9B958A;
+    --faint:#C9C3B8;
+    --line:#EAE5DC;
+    --expense:#B5654A;
+    --income:#5F7E55;
+    --mutual:#B59A5C;
+    --accent:#2B2926;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{background:var(--paper);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  body{max-width:560px;margin:0 auto;padding:0 18px 120px;min-height:100vh;}
+  .tnum{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
+
+  /* header */
+  header{display:flex;align-items:center;justify-content:space-between;
+    padding:26px 2px 18px;}
+  .title{font-size:20px;font-weight:600;letter-spacing:-0.01em;}
+  .sync{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--income);
+    box-shadow:0 0 0 0 rgba(95,126,85,.4);transition:background .3s;}
+  .dot.local{background:var(--faint);}
+  .dot.saving{animation:pulse 1s ease infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(95,126,85,.4);}70%{box-shadow:0 0 0 6px rgba(95,126,85,0);}100%{box-shadow:0 0 0 0 rgba(95,126,85,0);}}
+
+  /* summary */
+  .summary{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:22px 22px 20px;margin-bottom:22px;}
+  .month{font-size:12px;color:var(--muted);letter-spacing:.04em;margin-bottom:14px;
+    display:flex;align-items:center;gap:10px;}
+  .month button{background:none;border:none;color:var(--faint);font-size:16px;
+    cursor:pointer;padding:2px 6px;line-height:1;}
+  .month button:active{color:var(--ink);}
+  .month .lbl{min-width:88px;}
+  .hero-label{font-size:13px;color:var(--muted);margin-bottom:4px;}
+  .hero{font-size:34px;font-weight:600;letter-spacing:-0.02em;line-height:1;}
+  .sub{display:flex;gap:22px;margin-top:16px;}
+  .sub > div{font-size:13px;color:var(--muted);}
+  .sub b{display:block;font-size:16px;font-weight:600;color:var(--ink);margin-top:3px;}
+  .sub .pos{color:var(--income);} .sub .neg{color:var(--expense);}
+
+  /* split bar */
+  .split{margin-top:20px;}
+  .split-bar{height:8px;border-radius:6px;background:var(--line);overflow:hidden;display:flex;}
+  .split-bar i{height:100%;display:block;}
+  .split-legend{display:flex;justify-content:space-between;margin-top:9px;font-size:12px;color:var(--muted);}
+  .split-legend span b{color:var(--ink);font-weight:600;}
+  .swatch{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:middle;}
+
+  /* add form */
+  .form{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;margin-bottom:26px;}
+  .amount-row{display:flex;align-items:baseline;gap:6px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:14px;}
+  .won{font-size:24px;color:var(--faint);font-weight:500;}
+  .amount-row input{flex:1;border:none;outline:none;background:none;font-size:30px;font-weight:600;
+    color:var(--ink);letter-spacing:-0.02em;width:100%;}
+  .amount-row input::placeholder{color:var(--faint);font-weight:500;}
+  .conv{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-2px 0 14px;}
+  #convKRW{font-size:14px;color:var(--ink);font-weight:600;}
+  #rateBtn{border:none;background:none;color:var(--muted);font-size:12px;cursor:pointer;
+    border-bottom:1px dashed var(--faint);padding:0 0 1px;font-family:inherit;}
+  #rateBtn:active{color:var(--ink);}
+
+  .seg{display:flex;gap:6px;margin-bottom:12px;}
+  .seg button{flex:1;border:1px solid var(--line);background:var(--paper);color:var(--muted);
+    padding:9px;border-radius:10px;font-size:13px;cursor:pointer;font-weight:500;transition:all .15s;}
+  .seg button.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .seg.type button.on.exp{background:var(--expense);border-color:var(--expense);}
+  .seg.type button.on.inc{background:var(--income);border-color:var(--income);}
+
+  .meta-row{display:flex;gap:8px;margin-bottom:14px;}
+  .meta-row select,.meta-row input{flex:1;min-width:0;border:1px solid var(--line);background:var(--paper);
+    color:var(--ink);padding:10px 11px;border-radius:10px;font-size:13px;outline:none;
+    font-family:inherit;}
+  .meta-row input[type=date]{flex:0 0 auto;color:var(--muted);}
+
+  .add-btn{width:100%;border:none;background:var(--ink);color:#fff;padding:14px;
+    border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+  .add-btn:active{opacity:.8;}
+  .add-btn:disabled{background:var(--faint);cursor:default;}
+
+  /* list */
+  .day-group{margin-bottom:4px;}
+  .day-head{font-size:12px;color:var(--muted);letter-spacing:.03em;
+    padding:16px 2px 8px;display:flex;justify-content:space-between;}
+  .day-head b{color:var(--faint);font-weight:500;}
+  .row{display:flex;align-items:center;gap:11px;padding:12px 2px;border-bottom:1px solid var(--line);}
+  .row .cat-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;}
+  .row .info{flex:1;min-width:0;}
+  .row .info .l1{font-size:14.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .row .info .l2{font-size:12px;color:var(--muted);margin-top:2px;}
+  .row .amt{font-size:15px;font-weight:600;white-space:nowrap;}
+  .row .amt.exp{color:var(--expense);} .row .amt.inc{color:var(--income);}
+  .row .del{border:none;background:none;color:var(--faint);font-size:18px;cursor:pointer;
+    padding:4px 2px 4px 8px;line-height:1;}
+  .row .del:active{color:var(--expense);}
+
+  .empty{text-align:center;color:var(--muted);font-size:14px;padding:48px 20px;line-height:1.7;}
+  .empty .em-sub{font-size:13px;color:var(--faint);margin-top:6px;}
+
+  /* editable names */
+  .name-edit{color:inherit;font:inherit;border:none;background:none;border-bottom:1px dashed var(--faint);
+    padding:0 1px;width:auto;outline:none;}
+
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+</style>
+</head>
+<body>
+  <header>
+    <div class="title">가계부</div>
+    <div class="sync"><span class="dot" id="dot"></span><span id="syncTxt">동기화됨</span></div>
+  </header>
+
+  <section class="summary">
+    <div class="month">
+      <button id="prevM" aria-label="이전 달">‹</button>
+      <span class="lbl tnum" id="monthLbl"></span>
+      <button id="nextM" aria-label="다음 달">›</button>
+    </div>
+    <div class="hero-label">이번 달 지출</div>
+    <div class="hero tnum" id="heroExpense">₩ 0</div>
+    <div class="sub">
+      <div>수입<b class="tnum" id="incomeVal">₩ 0</b></div>
+      <div>잔액<b class="tnum" id="netVal">₩ 0</b></div>
+    </div>
+    <div class="split" id="splitWrap" style="display:none">
+      <div class="split-bar" id="splitBar"></div>
+      <div class="split-legend" id="splitLegend"></div>
+    </div>
+  </section>
+
+  <section class="form">
+    <div class="amount-row">
+      <span class="won">C$</span>
+      <input id="amount" type="text" inputmode="decimal" placeholder="0.00" autocomplete="off">
+    </div>
+    <div class="conv">
+      <span id="convKRW" class="tnum">≈ ₩ 0</span>
+      <button type="button" id="rateBtn">환율 불러오는 중…</button>
+    </div>
+    <div class="seg type" id="typeSeg">
+      <button data-type="expense" class="on exp">지출</button>
+      <button data-type="income">수입</button>
+    </div>
+    <div class="seg" id="personSeg">
+      <button data-person="0" class="on" id="pBtn0">Luke</button>
+      <button data-person="1" id="pBtn1">Abby</button>
+      <button data-person="2" id="pBtn2">Mutual</button>
+    </div>
+    <div class="meta-row">
+      <select id="category"></select>
+      <input id="date" type="date">
+    </div>
+    <div class="meta-row">
+      <input id="memo" type="text" placeholder="메모 (선택)" autocomplete="off">
+    </div>
+    <button class="add-btn" id="addBtn">추가</button>
+  </section>
+
+  <section id="list"></section>
+
+  <!-- Firebase: 안정적인 실시간 동기화 (한 번만 아래 값 채우면 모든 기기 공유) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+  <script>
+    /* ───────────────────────────────────────────────────────────
+       실시간 공유 설정 — databaseURL은 이미 채워져 있습니다.
+       남은 일은 Firebase 콘솔에서 "규칙(Rules)"만 열어주면 끝.
+       (apiKey는 선택사항이라 비워둬도 됩니다.)
+       ─────────────────────────────────────────────────────────── */
+    var firebaseConfig = {
+      apiKey:      "",
+      databaseURL: "https://budgetq100-default-rtdb.firebaseio.com"
+    };
+    var ROOM = "luke-abby-gagyebu";   // 새 가계부로 비우려면 이 값만 바꾸세요
+  </script>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- config ----------
+  var CATS = [
+    {name:"식비",  color:"#C2703D"},
+    {name:"생활",  color:"#7E8A6B"},
+    {name:"교통",  color:"#5E7E8A"},
+    {name:"데이트",color:"#A65A6E"},
+    {name:"여가",  color:"#8A7BA6"},
+    {name:"기타",  color:"#9B958A"}
+  ];
+  var KEY = "ledger";
+  var DEFAULT_RATE = 1080;        // C$1 -> KRW, fallback only (used if live fetch fails)
+  var liveRate = null;            // fetched current rate (in-memory, not stored)
+
+  function defaultData(){ return { names:["Luke","Abby","Mutual"], entries:[], rate:null }; }
+
+  // ---------- storage: Firebase Realtime DB (shared) or localStorage (this device) ----------
+  var FB_OK = false, fbRoot = null, fbConnected = false;
+  var entriesMap = {};            // id -> entry (live)
+
+  function fbConfigured(){
+    return firebaseConfig && firebaseConfig.databaseURL;
+  }
+  function normEntry(d){
+    if(!d || typeof d!=="object" || !d.id) return null;
+    return {
+      id:d.id,
+      type: d.type==="income" ? "income" : "expense",
+      amount: Number(d.amount)||0,
+      cad: (d.cad!=null ? Number(d.cad) : null),
+      rate: (d.rate!=null ? Number(d.rate) : null),
+      person: ([0,1,2].indexOf(Number(d.person))>=0 ? Number(d.person) : 0),
+      category: d.category || "기타",
+      memo: d.memo || "",
+      date: d.date || todayStr(),
+      createdAt: Number(d.createdAt)||0
+    };
+  }
+  function rebuildEntries(){
+    var arr=[]; for(var k in entriesMap){ if(entriesMap[k]) arr.push(entriesMap[k]); }
+    state.entries = arr;
+  }
+
+  // local fallback (single device, used if Firebase isn't configured)
+  function loadLocal(){
+    try{ var s=localStorage.getItem(ROOM); if(s){ var d=JSON.parse(s);
+      d.entries=Array.isArray(d.entries)?d.entries:[];
+      d.names=(Array.isArray(d.names)&&d.names.length>=2)?d.names:["Luke","Abby","Mutual"];
+      if(!d.names[2]) d.names[2]="Mutual";
+      if(typeof d.rate!=="number") d.rate=null;
+      return d; } }catch(e){}
+    return { names:["Luke","Abby","Mutual"], entries:[], rate:null };
+  }
+  function saveLocal(){ try{ localStorage.setItem(ROOM, JSON.stringify(state)); }catch(e){} }
+
+  // write helpers — Firebase when connected, else this-device storage
+  function writeEntry(entry){
+    entriesMap[entry.id]=entry;
+    if(FB_OK){ fbRoot.child("entries/"+entry.id).set(entry); }
+    else { rebuildEntries(); saveLocal(); render(); updateRateUI(); }
+  }
+  function delEntry(id){
+    delete entriesMap[id];
+    if(FB_OK){ fbRoot.child("entries/"+id).remove(); }
+    else { rebuildEntries(); saveLocal(); render(); updateRateUI(); }
+  }
+  function writeNames(i, name){
+    state.names[i]=name;
+    if(FB_OK){ fbRoot.child("settings").update({ name0:state.names[0], name1:state.names[1], name2:state.names[2] }); }
+    else { saveLocal(); }
+    render(); updateRateUI();
+  }
+  function writeRate(n){
+    state.rate=n;
+    if(FB_OK){ fbRoot.child("settings").update({ rate:n }); }
+    else { saveLocal(); }
+    render(); updateRateUI();
+  }
+
+  // ---------- state ----------
+  var state = defaultData();
+  var draft = { type:"expense", person:0 };
+  var viewMonth = startOfMonth(new Date());
+
+  // ---------- helpers ----------
+  function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+  function fmt(n){ return "₩ " + Math.round(n).toLocaleString("ko-KR"); }
+  function todayStr(){
+    var d = new Date(), p = function(x){return (x<10?"0":"")+x;};
+    return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+  }
+  function uid(){
+    return (crypto && crypto.randomUUID) ? crypto.randomUUID()
+      : Date.now().toString(36)+Math.random().toString(36).slice(2);
+  }
+  function catColor(name){
+    for(var i=0;i<CATS.length;i++) if(CATS[i].name===name) return CATS[i].color;
+    return "#9B958A";
+  }
+  function sameMonth(dateStr, base){
+    var d = new Date(dateStr+"T00:00:00");
+    return d.getFullYear()===base.getFullYear() && d.getMonth()===base.getMonth();
+  }
+  function dayLabel(dateStr){
+    var d = new Date(dateStr+"T00:00:00");
+    var wd = ["일","월","화","수","목","금","토"][d.getDay()];
+    var t = todayStr();
+    var yd = (function(){var y=new Date();y.setDate(y.getDate()-1);
+      var p=function(x){return(x<10?"0":"")+x;};
+      return y.getFullYear()+"-"+p(y.getMonth()+1)+"-"+p(y.getDate());})();
+    var base = (d.getMonth()+1)+"월 "+d.getDate()+"일 ("+wd+")";
+    if(dateStr===t) return "오늘 · "+base;
+    if(dateStr===yd) return "어제 · "+base;
+    return base;
+  }
+
+  function setDot(s){
+    var dot = document.getElementById("dot"), txt = document.getElementById("syncTxt");
+    dot.className = "dot";
+    if(!FB_OK){ dot.classList.add("local"); txt.textContent="이 기기에 저장"; return; }
+    if(s==="saving"){ dot.classList.add("saving"); txt.textContent="저장 중"; return; }
+    if(fbConnected){ txt.textContent="실시간 공유 중"; }
+    else { dot.classList.add("local"); txt.textContent="연결 중…"; }
+  }
+
+  // ---------- render ----------
+  function render(){
+    // month label
+    document.getElementById("monthLbl").textContent =
+      viewMonth.getFullYear()+"년 "+(viewMonth.getMonth()+1)+"월";
+
+    var inM = state.entries.filter(function(e){ return sameMonth(e.date, viewMonth); });
+    var expense=0, income=0, byPerson=[0,0,0];
+    inM.forEach(function(e){
+      if(e.type==="income") income += e.amount;
+      else { expense += e.amount; byPerson[e.person] += e.amount; }
+    });
+
+    document.getElementById("heroExpense").textContent = fmt(expense);
+    document.getElementById("incomeVal").textContent = fmt(income);
+    var net = income - expense;
+    var netEl = document.getElementById("netVal");
+    netEl.textContent = (net>=0?"+":"−") + fmt(Math.abs(net)).slice(2);
+    netEl.className = "tnum " + (net>=0?"pos":"neg");
+
+    // split bar (who spent this month: Luke / Abby / Mutual)
+    var split = document.getElementById("splitWrap");
+    var totalP = byPerson[0]+byPerson[1]+byPerson[2];
+    if(totalP>0){
+      split.style.display="block";
+      var pColors = ["var(--ink)","var(--expense)","var(--mutual)"];
+      var barHtml="", legHtml="";
+      for(var pi=0; pi<3; pi++){
+        if(byPerson[pi]<=0) continue;
+        var pct = byPerson[pi]/totalP*100;
+        barHtml += '<i style="width:'+pct+'%;background:'+pColors[pi]+'"></i>';
+        legHtml += '<span><span class="swatch" style="background:'+pColors[pi]+'"></span>'+
+                   escapeHtml(state.names[pi])+' <b>'+fmt(byPerson[pi]).slice(2)+'</b></span>';
+      }
+      document.getElementById("splitBar").innerHTML = barHtml;
+      document.getElementById("splitLegend").innerHTML = legHtml;
+    } else { split.style.display="none"; }
+
+    // person button labels
+    document.getElementById("pBtn0").firstChild.nodeValue = state.names[0];
+    document.getElementById("pBtn1").firstChild.nodeValue = state.names[1];
+    document.getElementById("pBtn2").firstChild.nodeValue = state.names[2];
+
+    // list (all entries, newest first, grouped by date)
+    var listEl = document.getElementById("list");
+    var entries = state.entries.slice().sort(function(a,b){
+      if(a.date!==b.date) return a.date<b.date?1:-1;
+      return (b.createdAt||0)-(a.createdAt||0);
+    });
+
+    if(entries.length===0){
+      listEl.innerHTML = '<div class="empty">아직 기록이 없어요.<div class="em-sub">위에서 첫 지출을 추가해 보세요.</div></div>';
+      return;
+    }
+
+    var html="", curDate=null, dayTotal=0, buf="";
+    function flush(){
+      if(curDate===null) return;
+      var t = dayTotal>=0 ? "−"+fmt(Math.abs(dayTotal)).slice(2) : "+"+fmt(Math.abs(dayTotal)).slice(2);
+      html += '<div class="day-group"><div class="day-head"><span>'+dayLabel(curDate)+
+              '</span><b class="tnum">'+t+'</b></div>'+buf+'</div>';
+    }
+    entries.forEach(function(e){
+      if(e.date!==curDate){ flush(); curDate=e.date; dayTotal=0; buf=""; }
+      dayTotal += (e.type==="income"? e.amount : -e.amount);
+      var sign = e.type==="income"?"+":"−";
+      var memo = e.memo ? " · "+escapeHtml(e.memo) : "";
+      buf += '<div class="row">'+
+        '<span class="cat-dot" style="background:'+(e.type==="income"?"var(--income)":catColor(e.category))+'"></span>'+
+        '<div class="info"><div class="l1">'+escapeHtml(e.category)+memo+'</div>'+
+        '<div class="l2">'+escapeHtml(state.names[e.person])+(e.cad?' · C$'+cadFmt(e.cad):'')+'</div></div>'+
+        '<div class="amt tnum '+(e.type==="income"?"inc":"exp")+'">'+sign+fmt(e.amount).slice(2)+'</div>'+
+        '<button class="del" data-id="'+e.id+'" aria-label="삭제">×</button>'+
+      '</div>';
+    });
+    flush();
+    listEl.innerHTML = html;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g,function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  // ---------- form behavior ----------
+  function buildCats(){
+    var sel = document.getElementById("category");
+    sel.innerHTML = CATS.map(function(c){return '<option value="'+c.name+'">'+c.name+'</option>';}).join("");
+  }
+
+  function formatCAD(el){
+    var v = el.value.replace(/[^\d.]/g,"");
+    var parts = v.split(".");
+    var intp = parts[0].replace(/^0+(?=\d)/,"");
+    var dec = parts.length>1 ? "."+parts.slice(1).join("").slice(0,2) : "";
+    el.value = (intp ? parseInt(intp,10).toLocaleString("en-CA") : (dec?"0":"")) + dec;
+  }
+  function getCAD(){
+    var raw = document.getElementById("amount").value.replace(/,/g,"");
+    var n = parseFloat(raw);
+    return isFinite(n) && n>0 ? n : 0;
+  }
+  function cadFmt(n){ return Number(n).toLocaleString("en-CA",{maximumFractionDigits:2}); }
+
+  function currentRate(){
+    if(liveRate && liveRate>0) return liveRate;     // live wins
+    if(state.rate && state.rate>0) return state.rate; // manual fallback
+    return DEFAULT_RATE;
+  }
+  function rateSource(){
+    if(liveRate && liveRate>0) return "실시간";
+    if(state.rate && state.rate>0) return "수동";
+    return "기본값";
+  }
+  function updatePreview(){
+    var krw = Math.round(getCAD()*currentRate());
+    document.getElementById("convKRW").textContent = "≈ ₩ " + krw.toLocaleString("ko-KR");
+  }
+  function updateRateUI(){
+    var r = currentRate();
+    document.getElementById("rateBtn").textContent =
+      "C$1 = ₩ " + Math.round(r).toLocaleString("ko-KR") + " · " + rateSource();
+    updatePreview();
+  }
+  async function fetchLiveRate(){
+    var urls = [
+      "https://api.frankfurter.app/latest?from=CAD&to=KRW",
+      "https://open.er-api.com/v6/latest/CAD"
+    ];
+    for(var i=0;i<urls.length;i++){
+      try{
+        var res = await fetch(urls[i]);
+        var j = await res.json();
+        var rate = (j && j.rates && j.rates.KRW) ? j.rates.KRW : null;
+        if(rate){ liveRate = rate; updateRateUI(); return; }
+      }catch(e){}
+    }
+    updateRateUI(); // fetch failed -> show manual/default rate
+  }
+
+  async function addEntry(){
+    var cad = getCAD();
+    if(cad<=0){ document.getElementById("amount").focus(); return; }
+    var rate = currentRate();
+    var entry = {
+      id: uid(),
+      type: draft.type,
+      amount: Math.round(cad*rate),  // KRW, frozen at entry time
+      cad: cad,                      // original CAD input
+      rate: rate,                    // rate used (record never shifts later)
+      person: draft.person,
+      category: document.getElementById("category").value,
+      memo: document.getElementById("memo").value.trim(),
+      date: document.getElementById("date").value || todayStr(),
+      createdAt: Date.now()
+    };
+    writeEntry(entry);
+    // reset (keep type/person/date for fast repeat entry)
+    document.getElementById("amount").value="";
+    document.getElementById("memo").value="";
+    updatePreview();
+    document.getElementById("amount").focus();
+  }
+
+  // ---------- events ----------
+  function wire(){
+    buildCats();
+    document.getElementById("date").value = todayStr();
+
+    document.getElementById("amount").addEventListener("input", function(){ formatCAD(this); updatePreview(); });
+    document.getElementById("rateBtn").addEventListener("click", function(){
+      var v = prompt("C$1 당 원화 환율을 직접 입력하세요.\n(실시간 환율을 못 불러올 때 쓰는 값이에요)", Math.round(currentRate()));
+      if(v===null) return;
+      var n = parseFloat(String(v).replace(/,/g,""));
+      if(isFinite(n) && n>0){ writeRate(n); }
+    });
+    document.getElementById("amount").addEventListener("keydown", function(e){ if(e.key==="Enter") addEntry(); });
+    document.getElementById("memo").addEventListener("keydown", function(e){ if(e.key==="Enter") addEntry(); });
+    document.getElementById("addBtn").addEventListener("click", addEntry);
+
+    // type toggle
+    document.getElementById("typeSeg").addEventListener("click", function(e){
+      var b = e.target.closest("button"); if(!b) return;
+      draft.type = b.dataset.type;
+      [].forEach.call(this.children,function(x){x.classList.remove("on","exp","inc");});
+      b.classList.add("on", draft.type==="expense"?"exp":"inc");
+    });
+    // person toggle
+    document.getElementById("personSeg").addEventListener("click", function(e){
+      var b = e.target.closest("button"); if(!b) return;
+      draft.person = parseInt(b.dataset.person,10);
+      [].forEach.call(this.children,function(x){x.classList.remove("on");});
+      b.classList.add("on");
+    });
+
+    // delete (event delegation)
+    document.getElementById("list").addEventListener("click", function(e){
+      var b = e.target.closest(".del"); if(!b) return;
+      var id = b.dataset.id;
+      if(confirm("이 기록을 삭제할까요?")){ delEntry(id); }
+    });
+
+    // month nav
+    document.getElementById("prevM").addEventListener("click", function(){
+      viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth()-1, 1); render();
+    });
+    document.getElementById("nextM").addEventListener("click", function(){
+      viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth()+1, 1); render();
+    });
+
+    // rename people: double-tap the legend names later; quick version via long-press on person buttons
+    document.getElementById("pBtn0").addEventListener("dblclick", function(){ renamePerson(0); });
+    document.getElementById("pBtn1").addEventListener("dblclick", function(){ renamePerson(1); });
+    document.getElementById("pBtn2").addEventListener("dblclick", function(){ renamePerson(2); });
+  }
+
+  function renamePerson(i){
+    var cur = state.names[i];
+    var nn = prompt("이름을 바꿀까요? (지금: "+cur+")", cur);
+    if(nn && nn.trim()){ writeNames(i, nn.trim()); }
+  }
+
+  // ---------- boot ----------
+  (function init(){
+    wire();
+
+    // Realtime sync via Firebase Realtime Database
+    if(typeof firebase !== "undefined" && fbConfigured()){
+      try{
+        var cfg = {};
+        for(var k in firebaseConfig){ if(firebaseConfig[k]) cfg[k]=firebaseConfig[k]; }
+        firebase.initializeApp(cfg);
+        fbRoot = firebase.database().ref(ROOM);
+        FB_OK = true;
+
+        firebase.database().ref(".info/connected").on("value", function(cs){
+          fbConnected = !!(cs && cs.val()===true);
+          setDot("ok");
+        });
+
+        fbRoot.child("entries").on("value", function(snap){
+          var val = snap.val() || {};
+          entriesMap = {};
+          for(var id in val){ var e=normEntry(val[id]); if(e) entriesMap[id]=e; }
+          rebuildEntries(); render(); updateRateUI(); setDot("ok");
+        });
+        fbRoot.child("settings").on("value", function(snap){
+          var s = snap.val();
+          if(s){
+            if(s.name0) state.names[0]=s.name0;
+            if(s.name1) state.names[1]=s.name1;
+            if(s.name2) state.names[2]=s.name2;
+            if(typeof s.rate==="number") state.rate=s.rate;
+            render(); updateRateUI();
+          }
+        });
+      }catch(e){ FB_OK=false; }
+    }
+
+    // Fall back to this-device storage if Firebase isn't configured
+    if(!FB_OK){
+      state = loadLocal();
+      entriesMap = {};
+      (state.entries||[]).forEach(function(e){ if(e&&e.id) entriesMap[e.id]=e; });
+    }
+
+    render();
+    setDot("ok");
+    updateRateUI();
+    fetchLiveRate();
+    setInterval(fetchLiveRate, 30*60*1000); // refresh rate every 30 min
+  })();
+
+})();
+</script>
+</body>
+</html>
